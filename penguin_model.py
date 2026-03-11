@@ -5,6 +5,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from itertools import combinations
 
+
 # ─────────────────────────────────────────
 # Data Loading & Preprocessing
 # ─────────────────────────────────────────
@@ -29,47 +30,43 @@ def load_data():
     return df
 
 
-def plot_feature_combinations(df):
-    features = ["CulmenLength", "CulmenDepth", "FlipperLength", "BodyMass"]
-    combos = list(combinations(features, 2))
-    colors = {"Adelie": "blue", "Chinstrap": "orange", "Gentoo": "green"}
+def prepare_data(df, feat1, feat2, class1, class2):
+    filtered = df[df["Species"].isin([class1, class2])].copy()
+    filtered["Species"] = filtered["Species"].map({class1: 1, class2: -1})
 
-    fig, axes = plt.subplots(2, 3, figsize=(30, 12))
-    axes = axes.flatten()
+    train_df, test_df = train_test_split(
+        filtered, test_size=0.4, stratify=filtered["Species"], random_state=42
+    )
 
-    for i, (feat1, feat2) in enumerate(combos):
-        ax = axes[i]
-        for species, color in colors.items():
-            subset = df[df["Species"] == species]
-            ax.scatter(subset[feat1], subset[feat2], label=species, color=color, alpha=0.6)
-        ax.set_xlabel(feat1)
-        ax.set_ylabel(feat2)
-        ax.set_title(f"{feat1} vs {feat2}")
-        ax.legend()
+    x_train = train_df[[feat1, feat2]]
+    y_train  = train_df["Species"]
+    x_test   = test_df[[feat1, feat2]]
+    y_test   = test_df["Species"]
 
-    plt.suptitle("All Feature Combinations by Species", fontsize=14, fontweight="bold")
-    plt.tight_layout()
-    plt.savefig("penguin_all_combinations.png", dpi=150)
-    plt.show()
+    return x_train, y_train, x_test, y_test
+
+
+def scale_data(x_train, x_test):
+    scaler         = StandardScaler()
+    x_train_scaled = pd.DataFrame(scaler.fit_transform(x_train), columns=x_train.columns, index=x_train.index)
+    x_test_scaled  = pd.DataFrame(scaler.transform(x_test),      columns=x_test.columns,  index=x_test.index)
+    return x_train_scaled, x_test_scaled
 
 
 # ─────────────────────────────────────────
 # Helper
 # ─────────────────────────────────────────
 def signum(x):
-    if x >= 0:
-        return 1
-    else:
-        return -1
+    return 1 if x >= 0 else -1
 
 
 # ─────────────────────────────────────────
 # Perceptron
 # ─────────────────────────────────────────
-def perceptron_train(x, y, w0, w1, w2, bias, lr=0.01, epochs=100):
+def perceptron_train(x, y, w0, w1, w2, bias, lr, epochs):
     for _ in range(epochs):
         for x1, x2, target in zip(x.iloc[:, 0], x.iloc[:, 1], y):
-            net = w1 * x1 + w2 * x2 + w0 * bias
+            net    = w1 * x1 + w2 * x2 + w0 * bias
             y_pred = signum(net)
             if y_pred != target:
                 error = target - y_pred
@@ -84,7 +81,7 @@ def perceptron_test(x_test, y_test, w0, w1, w2, bias):
     TP = TN = FP = FN = 0
 
     for x1, x2, target in zip(x_test.iloc[:, 0], x_test.iloc[:, 1], y_test):
-        net = w1 * x1 + w2 * x2 + w0 * bias
+        net  = w1 * x1 + w2 * x2 + w0 * bias
         pred = signum(net)
         predictions.append(pred)
 
@@ -102,17 +99,17 @@ def perceptron_test(x_test, y_test, w0, w1, w2, bias):
 # ─────────────────────────────────────────
 # Adaline
 # ─────────────────────────────────────────
-def adaline_train(x, y, w0, w1, w2, bias, lr=0.0001, epochs=1000, mse_threshold=0.01):
+def adaline_train(x, y, w0, w1, w2, bias, lr, epochs, mse_threshold):
     mse = float('inf')
     for _ in range(epochs):
         total_error = 0
         for x1, x2, target in zip(x.iloc[:, 0], x.iloc[:, 1], y):
-            net = w1 * x1 + w2 * x2 + w0 * bias
-            error = target - net
+            net    = w1 * x1 + w2 * x2 + w0 * bias
+            error  = target - net
             w1 = w1 + lr * error * x1
             w2 = w2 + lr * error * x2
             w0 = w0 + lr * error * bias
-            total_error += pow(error, 2)
+            total_error += error ** 2
         mse = total_error / len(y)
         if mse < mse_threshold:
             break
@@ -124,7 +121,7 @@ def adaline_test(x_test, y_test, w0, w1, w2, bias):
     TP = TN = FP = FN = 0
 
     for x1, x2, target in zip(x_test.iloc[:, 0], x_test.iloc[:, 1], y_test):
-        net = w1 * x1 + w2 * x2 + w0 * bias
+        net  = w1 * x1 + w2 * x2 + w0 * bias
         pred = signum(net)
         predictions.append(pred)
 
@@ -184,44 +181,24 @@ def plot_decision_boundary(x_train, y_train, x_test, y_test, w0, w1, w2, bias, f
     return fig
 
 
-# ─────────────────────────────────────────
-# runs only when executing this file directly
-# ignored when imported by app.py
-# ─────────────────────────────────────────
 if __name__ == "__main__":
+    FEAT1, FEAT2   = "CulmenLength", "CulmenDepth"
+    CLASS1, CLASS2 = "Adelie", "Gentoo"
+    BIAS, LR, EPOCHS, MSE_THRESHOLD = 1, 0.01, 100, 0.01
 
     df = load_data()
-    plot_feature_combinations(df)
+    x_train, y_train, x_test, y_test = prepare_data(df, FEAT1, FEAT2, CLASS1, CLASS2)
+    x_train_scaled, x_test_scaled    = scale_data(x_train, x_test)
 
-    # split
-    train_df, test_df = train_test_split(df, test_size=0.4, stratify=df["Species"], random_state=42)
-
-    # filter 2 classes
-    train_df_1 = train_df[train_df["Species"].isin(["Adelie", "Gentoo"])]
-    test_df_1  = test_df[test_df["Species"].isin(["Adelie", "Gentoo"])]
-
-    x       = train_df_1.drop(columns="Species")
-    y       = train_df_1["Species"].map({"Adelie": 1, "Gentoo": -1})
-    x_test  = test_df_1.drop(columns="Species")
-    y_test  = test_df_1["Species"].map({"Adelie": 1, "Gentoo": -1})
-
-    bias = 1  # change to 0 to disable bias
-
-    # ── Perceptron ──
-    w0, w1, w2 = np.random.rand(), np.random.rand(), np.random.rand()
-    w1, w2, w0 = perceptron_train(x[["CulmenLength", "CulmenDepth"]], y, w0, w1, w2, bias, lr=0.01, epochs=100)
-    preds, acc, cm = perceptron_test(x_test[["CulmenLength", "CulmenDepth"]], y_test, w0, w1, w2, bias)
+    # Perceptron
+    w0, w1, w2 = np.random.rand() * 0.01, np.random.rand() * 0.01, np.random.rand() * 0.01
+    w1, w2, w0 = perceptron_train(x_train, y_train, w0, w1, w2, BIAS, LR, EPOCHS)
+    preds, acc, cm = perceptron_test(x_test, y_test, w0, w1, w2, BIAS)
     print("Perceptron Accuracy:", acc)
-    print("Confusion Matrix:\n", cm)
 
-    # ── Adaline ──
-    scaler = StandardScaler()
-    x_scaled      = pd.DataFrame(scaler.fit_transform(x), columns=x.columns, index=x.index)
-    x_test_scaled = pd.DataFrame(scaler.transform(x_test), columns=x_test.columns, index=x_test.index)
-
-    w0, w1, w2 = np.random.rand(), np.random.rand(), np.random.rand()
-    w1, w2, w0, mse = adaline_train(x_scaled[["CulmenLength", "CulmenDepth"]], y, w0, w1, w2, bias, lr=0.0001, epochs=1000, mse_threshold=0.01)
-    preds, acc, cm  = adaline_test(x_test_scaled[["CulmenLength", "CulmenDepth"]], y_test, w0, w1, w2, bias)
+    # Adaline
+    w0, w1, w2 = np.random.rand() * 0.01, np.random.rand() * 0.01, np.random.rand() * 0.01
+    w1, w2, w0, mse = adaline_train(x_train_scaled, y_train, w0, w1, w2, BIAS, LR, EPOCHS, MSE_THRESHOLD)
+    preds, acc, cm  = adaline_test(x_test_scaled, y_test, w0, w1, w2, BIAS)
     print("Adaline Accuracy:", acc)
     print("MSE:", mse)
-    print("Confusion Matrix:\n", cm)

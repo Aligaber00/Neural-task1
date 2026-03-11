@@ -4,7 +4,7 @@ import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 
-# ── import everything from your notebook module ──
+# import everything from notebook module
 from penguin_model import (
     load_data,
     perceptron_train,
@@ -35,9 +35,9 @@ feat1    = st.sidebar.selectbox("Feature 1", all_features, index=0)
 feat2    = st.sidebar.selectbox("Feature 2", all_features, index=1)
 class1   = st.sidebar.selectbox("Class 1",   all_classes,  index=0)
 class2   = st.sidebar.selectbox("Class 2",   all_classes,  index=2)
-lr       = st.sidebar.number_input("Learning Rate (eta)",  value=0.01,  format="%.4f")
-epochs   = st.sidebar.number_input("Epochs (m)",           value=100,   min_value=1, step=10)
-mse_thr  = st.sidebar.number_input("MSE Threshold",        value=0.01,  format="%.4f")
+lr       = st.sidebar.number_input("Learning Rate (eta)",value=0.01,  format="%.4f")
+epochs   = st.sidebar.number_input("Epochs (m)", value=100, min_value=1, step=10)
+mse_thr  = st.sidebar.number_input("MSE Threshold", value=0.01, format="%.4f")
 use_bias = st.sidebar.checkbox("Add Bias", value=True)
 algo     = st.sidebar.radio("Algorithm", ["Perceptron", "Adaline"])
 
